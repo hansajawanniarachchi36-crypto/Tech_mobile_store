@@ -11,7 +11,7 @@ class PhoneShopApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Mobile Store',
+      title: 'Tech Mobile Store',
       theme: ThemeData.dark().copyWith(
         scaffoldBackgroundColor: const Color(0xFF0D0F12),
         colorScheme: const ColorScheme.dark(
@@ -19,25 +19,28 @@ class PhoneShopApp extends StatelessWidget {
           surface: Color(0xFF181A20),
         ),
       ),
-      home: const HomeScreen(),
+      home: const MainTabScreen(),
     );
   }
 }
 
-// Phone Data Model with imageUrl
+// Phone Data Model
 class PhoneProduct {
+  final String id;
   final String name;
   final String brand;
-  final String price;
+  final double price;
   final String rating;
-  final String imageUrl; // Image URL
+  final String imageUrl;
   final String ram;
   final String storage;
   final String battery;
   final String camera;
   final String description;
+  final bool inStock;
 
   PhoneProduct({
+    required this.id,
     required this.name,
     required this.brand,
     required this.price,
@@ -48,18 +51,277 @@ class PhoneProduct {
     required this.battery,
     required this.camera,
     required this.description,
+    this.inStock = true,
   });
 }
 
+// Cart Item Model
+class CartItem {
+  final PhoneProduct product;
+  int quantity;
+
+  CartItem({required this.product, this.quantity = 1});
+}
+
+// Main Navigation Tab Screen
+class MainTabScreen extends StatefulWidget {
+  const MainTabScreen({super.key});
+
+  @override
+  State<MainTabScreen> createState() => _MainTabScreenState();
+}
+
+class _MainTabScreenState extends State<MainTabScreen> {
+  int _currentIndex = 0;
+
+  // App Global State (In-Memory Data Store)
+  final List<CartItem> _cartItems = [];
+  final List<PhoneProduct> _wishlistItems = [];
+
+  // Dataset
+  final List<PhoneProduct> _allProducts = [
+    // Apple
+    PhoneProduct(
+      id: 'p1',
+      name: 'iPhone 15 Pro Max',
+      brand: 'Apple',
+      price: 1199.00,
+      rating: '4.9',
+      imageUrl: 'https://images.unsplash.com/photo-1695048133142-1a20484d2569?q=80&w=500',
+      ram: '8 GB',
+      storage: '256GB / 512GB / 1TB',
+      battery: '4422 mAh',
+      camera: '48MP + 12MP + 12MP',
+      description:
+          'Titanium design with A17 Pro chip and customizable Action button.',
+    ),
+    PhoneProduct(
+      id: 'p2',
+      name: 'iPhone 15 Pro',
+      brand: 'Apple',
+      price: 999.00,
+      rating: '4.8',
+      imageUrl: 'https://images.unsplash.com/photo-1695048133142-1a20484d2569?q=80&w=500',
+      ram: '8 GB',
+      storage: '128GB / 256GB / 512GB',
+      battery: '3274 mAh',
+      camera: '48MP + 12MP + 12MP',
+      description: 'Lightweight titanium build with Pro camera system.',
+    ),
+    PhoneProduct(
+      id: 'p3',
+      name: 'iPhone 15',
+      brand: 'Apple',
+      price: 799.00,
+      rating: '4.7',
+      imageUrl: 'https://images.unsplash.com/photo-1510557880182-3d4d3cba35a5?q=80&w=500',
+      ram: '6 GB',
+      storage: '128GB / 256GB',
+      battery: '3349 mAh',
+      camera: '48MP + 12MP Dual Camera',
+      description: 'Dynamic Island, 48MP Main camera, and USB-C support.',
+    ),
+
+    // Samsung
+    PhoneProduct(
+      id: 'p4',
+      name: 'Galaxy S24 Ultra',
+      brand: 'Samsung',
+      price: 1299.00,
+      rating: '4.9',
+      imageUrl: 'https://images.unsplash.com/photo-1610945265064-0e34e5519bbf?q=80&w=500',
+      ram: '12 GB',
+      storage: '256GB / 512GB / 1TB',
+      battery: '5000 mAh',
+      camera: '200MP + 50MP + 12MP + 10MP',
+      description: 'Galaxy AI is here. Integrated S Pen with Titanium Frame.',
+    ),
+    PhoneProduct(
+      id: 'p5',
+      name: 'Galaxy Z Fold 5',
+      brand: 'Samsung',
+      price: 1799.00,
+      rating: '4.8',
+      imageUrl: 'https://images.unsplash.com/photo-1584006682522-dc17d6c0d963?q=80&w=500',
+      ram: '12 GB',
+      storage: '256GB / 512GB',
+      battery: '4400 mAh',
+      camera: '50MP + 12MP + 10MP',
+      description: 'Massive 7.6-inch main screen for ultimate multitasking.',
+    ),
+
+    // Xiaomi
+    PhoneProduct(
+      id: 'p6',
+      name: 'Xiaomi 14 Ultra',
+      brand: 'Xiaomi',
+      price: 1199.00,
+      rating: '4.8',
+      imageUrl: 'https://images.unsplash.com/photo-1598327105666-5b89351aff97?q=80&w=500',
+      ram: '16 GB',
+      storage: '512GB / 1TB',
+      battery: '5300 mAh',
+      camera: '50MP Quad Leica Cameras',
+      description: 'Leica Quad Camera System with 1-inch sensor optical lens.',
+    ),
+
+    // Google
+    PhoneProduct(
+      id: 'p7',
+      name: 'Pixel 8 Pro',
+      brand: 'Google',
+      price: 999.00,
+      rating: '4.8',
+      imageUrl: 'https://images.unsplash.com/photo-1598327105666-5b89351aff97?q=80&w=500',
+      ram: '12 GB',
+      storage: '128GB / 256GB / 512GB',
+      battery: '5050 mAh',
+      camera: '50MP + 48MP + 48MP',
+      description: 'Google Tensor G3 chip with specialized AI camera software.',
+    ),
+
+    // OnePlus
+    PhoneProduct(
+      id: 'p8',
+      name: 'OnePlus 12',
+      brand: 'OnePlus',
+      price: 799.00,
+      rating: '4.8',
+      imageUrl: 'https://images.unsplash.com/photo-1565849904461-04a58ad377e0?q=80&w=500',
+      ram: '12 GB / 16 GB',
+      storage: '256GB / 512GB',
+      battery: '5400 mAh',
+      camera: '50MP + 64MP + 48MP Hasselblad',
+      description:
+          'Smooth Beyond Belief with Snapdragon 8 Gen 3 and 100W charging.',
+    ),
+  ];
+
+  // Helper Methods
+  void _addToCart(PhoneProduct product) {
+    setState(() {
+      final index = _cartItems.indexWhere(
+        (item) => item.product.id == product.id,
+      );
+      if (index >= 0) {
+        _cartItems[index].quantity++;
+      } else {
+        _cartItems.add(CartItem(product: product));
+      }
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('${product.name} added to cart!'),
+        duration: const Duration(seconds: 2),
+        action: SnackBarAction(
+          label: 'VIEW CART',
+          textColor: Colors.cyanAccent,
+          onPressed: () {
+            setState(() {
+              _currentIndex = 2; // Move to Cart tab
+            });
+          },
+        ),
+      ),
+    );
+  }
+
+  void _toggleWishlist(PhoneProduct product) {
+    setState(() {
+      if (_wishlistItems.contains(product)) {
+        _wishlistItems.remove(product);
+      } else {
+        _wishlistItems.add(product);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final pages = [
+      HomeScreen(
+        products: _allProducts,
+        wishlist: _wishlistItems,
+        onAddToCart: _addToCart,
+        onToggleWishlist: _toggleWishlist,
+      ),
+      WishlistScreen(
+        wishlist: _wishlistItems,
+        onAddToCart: _addToCart,
+        onToggleWishlist: _toggleWishlist,
+      ),
+      CartScreen(
+        cartItems: _cartItems,
+        onQuantityChanged: () => setState(() {}),
+        onRemove: (item) => setState(() => _cartItems.remove(item)),
+        onClearCart: () => setState(() => _cartItems.clear()),
+      ),
+      const ProfileScreen(),
+    ];
+
+    return Scaffold(
+      body: pages[_currentIndex],
+      bottomNavigationBar: BottomNavigationBar(
+        backgroundColor: const Color(0xFF181A20),
+        selectedItemColor: Colors.cyanAccent,
+        unselectedItemColor: Colors.grey,
+        currentIndex: _currentIndex,
+        type: BottomNavigationBarType.fixed,
+        onTap: (index) => setState(() => _currentIndex = index),
+        items: [
+          const BottomNavigationBarItem(
+            icon: Icon(Icons.home_filled),
+            label: 'Home',
+          ),
+          BottomNavigationBarItem(
+            icon: Badge(
+              label: Text('${_wishlistItems.length}'),
+              isLabelVisible: _wishlistItems.isNotEmpty,
+              child: const Icon(Icons.favorite_outline),
+            ),
+            label: 'Wishlist',
+          ),
+          BottomNavigationBarItem(
+            icon: Badge(
+              label: Text(
+                '${_cartItems.fold(0, (sum, item) => sum + item.quantity)}',
+              ),
+              isLabelVisible: _cartItems.isNotEmpty,
+              child: const Icon(Icons.shopping_cart_outlined),
+            ),
+            label: 'Cart',
+          ),
+          const BottomNavigationBarItem(
+            icon: Icon(Icons.person_outline),
+            label: 'Profile',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Home Screen
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final List<PhoneProduct> products;
+  final List<PhoneProduct> wishlist;
+  final Function(PhoneProduct) onAddToCart;
+  final Function(PhoneProduct) onToggleWishlist;
+
+  const HomeScreen({
+    super.key,
+    required this.products,
+    required this.wishlist,
+    required this.onAddToCart,
+    required this.onToggleWishlist,
+  });
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  int _selectedIndex = 0;
   String selectedCategory = 'All';
   String searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
@@ -73,327 +335,9 @@ class _HomeScreenState extends State<HomeScreen> {
     'OnePlus',
   ];
 
-  // Smartphone Dataset with Network Image URLs
-  final List<PhoneProduct> allProducts = [
-    // Apple
-    PhoneProduct(
-      name: 'iPhone 15 Pro Max',
-      brand: 'Apple',
-      price: '\$1,199',
-      rating: '4.9',
-      imageUrl: 'https://images.unsplash.com/photo-1695048133142-1a20484d2569?q=80&w=500',
-      ram: '8 GB',
-      storage: '256GB / 512GB / 1TB',
-      battery: '4422 mAh',
-      camera: '48MP + 12MP + 12MP',
-      description:
-          'Titanium design with A17 Pro chip and customizable Action button.',
-    ),
-    PhoneProduct(
-      name: 'iPhone 15 Pro',
-      brand: 'Apple',
-      price: '\$999',
-      rating: '4.8',
-      imageUrl: 'https://images.unsplash.com/photo-1695048133142-1a20484d2569?q=80&w=500',
-      ram: '8 GB',
-      storage: '128GB / 256GB / 512GB',
-      battery: '3274 mAh',
-      camera: '48MP + 12MP + 12MP',
-      description: 'Lightweight titanium build with Pro camera system.',
-    ),
-    PhoneProduct(
-      name: 'iPhone 15',
-      brand: 'Apple',
-      price: '\$799',
-      rating: '4.7',
-      imageUrl: 'https://images.unsplash.com/photo-1510557880182-3d4d3cba35a5?q=80&w=500',
-      ram: '6 GB',
-      storage: '128GB / 256GB',
-      battery: '3349 mAh',
-      camera: '48MP + 12MP Dual Camera',
-      description: 'Dynamic Island, 48MP Main camera, and USB-C support.',
-    ),
-    PhoneProduct(
-      name: 'iPhone 14 Pro Max',
-      brand: 'Apple',
-      price: '\$999',
-      rating: '4.8',
-      imageUrl: 'https://images.unsplash.com/photo-1678685888221-cda773a3dcdb?q=80&w=500',
-      ram: '6 GB',
-      storage: '128GB / 256GB / 512GB',
-      battery: '4323 mAh',
-      camera: '48MP Triple Camera',
-      description: 'Features Dynamic Island and Always-On display technology.',
-    ),
-    PhoneProduct(
-      name: 'iPhone 13',
-      brand: 'Apple',
-      price: '\$599',
-      rating: '4.6',
-      imageUrl: 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?q=80&w=500',
-      ram: '4 GB',
-      storage: '128GB / 256GB',
-      battery: '3240 mAh',
-      camera: '12MP Dual Camera',
-      description: 'Super Retina XDR display with Cinematic mode in 1080p.',
-    ),
-
-    // Samsung
-    PhoneProduct(
-      name: 'Galaxy S24 Ultra',
-      brand: 'Samsung',
-      price: '\$1,299',
-      rating: '4.9',
-      imageUrl: 'https://images.unsplash.com/photo-1610945265064-0e34e5519bbf?q=80&w=500',
-      ram: '12 GB',
-      storage: '256GB / 512GB / 1TB',
-      battery: '5000 mAh',
-      camera: '200MP + 50MP + 12MP + 10MP',
-      description: 'Galaxy AI is here. Integrated S Pen with Titanium Frame.',
-    ),
-    PhoneProduct(
-      name: 'Galaxy S24+',
-      brand: 'Samsung',
-      price: '\$999',
-      rating: '4.7',
-      imageUrl: 'https://images.unsplash.com/photo-1610945265064-0e34e5519bbf?q=80&w=500',
-      ram: '12 GB',
-      storage: '256GB / 512GB',
-      battery: '4900 mAh',
-      camera: '50MP + 10MP + 12MP',
-      description: 'Enhanced QHD+ display with Snapdragon 8 Gen 3 for Galaxy.',
-    ),
-    PhoneProduct(
-      name: 'Galaxy Z Fold 5',
-      brand: 'Samsung',
-      price: '\$1,799',
-      rating: '4.8',
-      imageUrl: 'https://images.unsplash.com/photo-1584006682522-dc17d6c0d963?q=80&w=500',
-      ram: '12 GB',
-      storage: '256GB / 512GB',
-      battery: '4400 mAh',
-      camera: '50MP + 12MP + 10MP',
-      description: 'Massive 7.6-inch main screen for ultimate multitasking.',
-    ),
-    PhoneProduct(
-      name: 'Galaxy Z Flip 5',
-      brand: 'Samsung',
-      price: '\$999',
-      rating: '4.6',
-      imageUrl: 'https://images.unsplash.com/photo-1584006682522-dc17d6c0d963?q=80&w=500',
-      ram: '8 GB',
-      storage: '256GB / 512GB',
-      battery: '3700 mAh',
-      camera: '12MP Dual Camera',
-      description: 'Compact pocket-sized design with Flex Window.',
-    ),
-    PhoneProduct(
-      name: 'Galaxy A54 5G',
-      brand: 'Samsung',
-      price: '\$449',
-      rating: '4.5',
-      imageUrl: 'https://images.unsplash.com/photo-1610945265064-0e34e5519bbf?q=80&w=500',
-      ram: '8 GB',
-      storage: '128GB / 256GB',
-      battery: '5000 mAh',
-      camera: '50MP + 12MP + 5MP',
-      description: 'Awesome camera and smooth 120Hz Super AMOLED screen.',
-    ),
-
-    // Xiaomi
-    PhoneProduct(
-      name: 'Xiaomi 14 Ultra',
-      brand: 'Xiaomi',
-      price: '\$1,199',
-      rating: '4.8',
-      imageUrl: 'https://images.unsplash.com/photo-1598327105666-5b89351aff97?q=80&w=500',
-      ram: '16 GB',
-      storage: '512GB / 1TB',
-      battery: '5300 mAh',
-      camera: '50MP Quad Leica Cameras',
-      description: 'Leica Quad Camera System with 1-inch sensor optical lens.',
-    ),
-    PhoneProduct(
-      name: 'Xiaomi 14',
-      brand: 'Xiaomi',
-      price: '\$799',
-      rating: '4.7',
-      imageUrl: 'https://images.unsplash.com/photo-1598327105666-5b89351aff97?q=80&w=500',
-      ram: '12 GB',
-      storage: '256GB / 512GB',
-      battery: '4610 mAh',
-      camera: '50MP Triple Leica Camera',
-      description: 'Compact size with Snapdragon 8 Gen 3 flagship processor.',
-    ),
-    PhoneProduct(
-      name: 'Xiaomi 13T Pro',
-      brand: 'Xiaomi',
-      price: '\$649',
-      rating: '4.6',
-      imageUrl: 'https://images.unsplash.com/photo-1598327105666-5b89351aff97?q=80&w=500',
-      ram: '12 GB',
-      storage: '256GB / 512GB',
-      battery: '5000 mAh',
-      camera: '50MP Leica Camera',
-      description: '144Hz CrystalRes AMOLED display with 120W HyperCharge.',
-    ),
-    PhoneProduct(
-      name: 'Redmi Note 13 Pro+',
-      brand: 'Xiaomi',
-      price: '\$399',
-      rating: '4.5',
-      imageUrl: 'https://images.unsplash.com/photo-1598327105666-5b89351aff97?q=80&w=500',
-      ram: '8 GB / 12 GB',
-      storage: '256GB / 512GB',
-      battery: '5000 mAh',
-      camera: '200MP OIS Camera',
-      description: '200MP ultra-clear camera with 120W Smart HyperCharge.',
-    ),
-    PhoneProduct(
-      name: 'POCO F6 Pro',
-      brand: 'Xiaomi',
-      price: '\$499',
-      rating: '4.6',
-      imageUrl: 'https://images.unsplash.com/photo-1598327105666-5b89351aff97?q=80&w=500',
-      ram: '12 GB',
-      storage: '256GB / 512GB',
-      battery: '5000 mAh',
-      camera: '50MP Triple Camera',
-      description: 'WQHD+ 120Hz Flow AMOLED with Snapdragon 8 Gen 2.',
-    ),
-
-    // Google
-    PhoneProduct(
-      name: 'Pixel 8 Pro',
-      brand: 'Google',
-      price: '\$999',
-      rating: '4.8',
-      imageUrl: 'https://images.unsplash.com/photo-1598327105666-5b89351aff97?q=80&w=500',
-      ram: '12 GB',
-      storage: '128GB / 256GB / 512GB',
-      battery: '5050 mAh',
-      camera: '50MP + 48MP + 48MP',
-      description: 'Google Tensor G3 chip with specialized AI camera software.',
-    ),
-    PhoneProduct(
-      name: 'Pixel 8',
-      brand: 'Google',
-      price: '\$699',
-      rating: '4.7',
-      imageUrl: 'https://images.unsplash.com/photo-1598327105666-5b89351aff97?q=80&w=500',
-      ram: '8 GB',
-      storage: '128GB / 256GB',
-      battery: '4575 mAh',
-      camera: '50MP + 12MP',
-      description: 'Powerful everyday camera with Actua bright display.',
-    ),
-    PhoneProduct(
-      name: 'Pixel 8a',
-      brand: 'Google',
-      price: '\$499',
-      rating: '4.6',
-      imageUrl: 'https://images.unsplash.com/photo-1598327105666-5b89351aff97?q=80&w=500',
-      ram: '8 GB',
-      storage: '128GB / 256GB',
-      battery: '4492 mAh',
-      camera: '64MP + 13MP',
-      description:
-          'Delivers high-end AI camera features at an affordable rate.',
-    ),
-    PhoneProduct(
-      name: 'Pixel Fold',
-      brand: 'Google',
-      price: '\$1,799',
-      rating: '4.5',
-      imageUrl: 'https://images.unsplash.com/photo-1584006682522-dc17d6c0d963?q=80&w=500',
-      ram: '12 GB',
-      storage: '256GB / 512GB',
-      battery: '4821 mAh',
-      camera: '48MP + 10.8MP + 10.8MP',
-      description:
-          'The first foldable phone engineered by Google with Tensor G2.',
-    ),
-    PhoneProduct(
-      name: 'Pixel 7a',
-      brand: 'Google',
-      price: '\$374',
-      rating: '4.5',
-      imageUrl: 'https://images.unsplash.com/photo-1598327105666-5b89351aff97?q=80&w=500',
-      ram: '8 GB',
-      storage: '128GB',
-      battery: '4385 mAh',
-      camera: '64MP Dual Camera',
-      description: 'Incredible speed and security built with Google Tensor G2.',
-    ),
-
-    // OnePlus
-    PhoneProduct(
-      name: 'OnePlus 12',
-      brand: 'OnePlus',
-      price: '\$799',
-      rating: '4.8',
-      imageUrl: 'https://images.unsplash.com/photo-1565849904461-04a58ad377e0?q=80&w=500',
-      ram: '12 GB / 16 GB',
-      storage: '256GB / 512GB',
-      battery: '5400 mAh',
-      camera: '50MP + 64MP + 48MP Hasselblad',
-      description:
-          'Smooth Beyond Belief with Snapdragon 8 Gen 3 and 100W charging.',
-    ),
-    PhoneProduct(
-      name: 'OnePlus 12R',
-      brand: 'OnePlus',
-      price: '\$499',
-      rating: '4.7',
-      imageUrl: 'https://images.unsplash.com/photo-1565849904461-04a58ad377e0?q=80&w=500',
-      ram: '8 GB / 16 GB',
-      storage: '128GB / 256GB',
-      battery: '5500 mAh',
-      camera: '50MP Triple Camera',
-      description: 'Performance flagship featuring 4th Gen LTPO 120Hz display.',
-    ),
-    PhoneProduct(
-      name: 'OnePlus Open',
-      brand: 'OnePlus',
-      price: '\$1,699',
-      rating: '4.9',
-      imageUrl: 'https://images.unsplash.com/photo-1584006682522-dc17d6c0d963?q=80&w=500',
-      ram: '16 GB',
-      storage: '512GB',
-      battery: '4805 mAh',
-      camera: '48MP + 64MP + 48MP Hasselblad',
-      description:
-          'Lightweight foldable powerhouse with Open Canvas multitasking.',
-    ),
-    PhoneProduct(
-      name: 'OnePlus Nord 4',
-      brand: 'OnePlus',
-      price: '\$399',
-      rating: '4.5',
-      imageUrl: 'https://images.unsplash.com/photo-1565849904461-04a58ad377e0?q=80&w=500',
-      ram: '8 GB / 12 GB',
-      storage: '128GB / 256GB',
-      battery: '5500 mAh',
-      camera: '50MP Sony OIS Camera',
-      description: 'All-metal unibody design with 100W SUPERVOOC charging.',
-    ),
-    PhoneProduct(
-      name: 'OnePlus 11 5G',
-      brand: 'OnePlus',
-      price: '\$699',
-      rating: '4.7',
-      imageUrl: 'https://images.unsplash.com/photo-1565849904461-04a58ad377e0?q=80&w=500',
-      ram: '8 GB / 16 GB',
-      storage: '128GB / 256GB',
-      battery: '5000 mAh',
-      camera: '50MP Hasselblad Camera',
-      description: 'Powered by Snapdragon 8 Gen 2 with Cryo-velocity cooling.',
-    ),
-  ];
-
   @override
   Widget build(BuildContext context) {
-    final filteredProducts = allProducts.where((product) {
+    final filteredProducts = widget.products.where((product) {
       final matchesCategory =
           selectedCategory == 'All' || product.brand == selectedCategory;
       final matchesSearch =
@@ -423,15 +367,6 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ],
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(
-              Icons.shopping_bag_outlined,
-              color: Colors.cyanAccent,
-            ),
-            onPressed: () {},
-          ),
-        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
@@ -441,11 +376,7 @@ class _HomeScreenState extends State<HomeScreen> {
             // Search Bar
             TextField(
               controller: _searchController,
-              onChanged: (value) {
-                setState(() {
-                  searchQuery = value;
-                });
-              },
+              onChanged: (val) => setState(() => searchQuery = val),
               decoration: InputDecoration(
                 hintText: 'Search phones by name or brand...',
                 hintStyle: const TextStyle(color: Colors.grey),
@@ -455,9 +386,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         icon: const Icon(Icons.clear, color: Colors.grey),
                         onPressed: () {
                           _searchController.clear();
-                          setState(() {
-                            searchQuery = '';
-                          });
+                          setState(() => searchQuery = '');
                         },
                       )
                     : null,
@@ -478,8 +407,6 @@ class _HomeScreenState extends State<HomeScreen> {
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
                   colors: [Colors.cyan, Colors.blueAccent],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
                 ),
                 borderRadius: BorderRadius.circular(20),
               ),
@@ -488,8 +415,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
+                      children: const [
+                        Text(
                           'SPECIAL OFFER',
                           style: TextStyle(
                             color: Colors.black,
@@ -497,8 +424,8 @@ class _HomeScreenState extends State<HomeScreen> {
                             fontSize: 12,
                           ),
                         ),
-                        const SizedBox(height: 5),
-                        const Text(
+                        SizedBox(height: 5),
+                        Text(
                           '15% OFF on Flagship Models',
                           style: TextStyle(
                             color: Colors.black,
@@ -506,26 +433,12 @@ class _HomeScreenState extends State<HomeScreen> {
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                        const SizedBox(height: 10),
-                        ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.black,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                          onPressed: () {},
-                          child: const Text(
-                            'Shop Now',
-                            style: TextStyle(color: Colors.white),
-                          ),
-                        ),
                       ],
                     ),
                   ),
                   const Icon(
                     Icons.phone_iphone,
-                    size: 70,
+                    size: 60,
                     color: Colors.black26,
                   ),
                 ],
@@ -533,7 +446,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             const SizedBox(height: 24),
 
-            // Brands Category Selector
+            // Brands Filter
             const Text(
               'Brands',
               style: TextStyle(
@@ -549,10 +462,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 scrollDirection: Axis.horizontal,
                 itemCount: categories.length,
                 itemBuilder: (context, index) {
-                  final category = categories[index];
-                  final isSelected = category == selectedCategory;
+                  final cat = categories[index];
+                  final isSelected = cat == selectedCategory;
                   return GestureDetector(
-                    onTap: () => setState(() => selectedCategory = category),
+                    onTap: () => setState(() => selectedCategory = cat),
                     child: Container(
                       margin: const EdgeInsets.only(right: 10),
                       padding: const EdgeInsets.symmetric(
@@ -566,7 +479,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
-                        category,
+                        cat,
                         style: TextStyle(
                           color: isSelected ? Colors.black : Colors.white,
                           fontWeight: FontWeight.bold,
@@ -579,213 +492,523 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             const SizedBox(height: 24),
 
-            // Title
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  '$selectedCategory Phones',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-                Text(
-                  '${filteredProducts.length} items',
-                  style: const TextStyle(color: Colors.grey, fontSize: 13),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
+            // Grid View
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: filteredProducts.length,
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                childAspectRatio: 0.65,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+              ),
+              itemBuilder: (context, index) {
+                final product = filteredProducts[index];
+                final isWishlisted = widget.wishlist.contains(product);
 
-            // Product Grid
-            filteredProducts.isEmpty
-                ? Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 40),
-                    child: Column(
-                      children: const [
-                        Icon(
-                          Icons.remove_shopping_cart_outlined,
-                          size: 70,
-                          color: Colors.redAccent,
+                return GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ProductDetailScreen(
+                          product: product,
+                          isWishlisted: isWishlisted,
+                          onAddToCart: widget.onAddToCart,
+                          onToggleWishlist: widget.onToggleWishlist,
                         ),
-                        SizedBox(height: 16),
+                      ),
+                    );
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF181A20),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Stack(
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: Image.network(
+                                product.imageUrl,
+                                height: 120,
+                                width: double.infinity,
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                            Positioned(
+                              top: 4,
+                              right: 4,
+                              child: IconButton(
+                                icon: Icon(
+                                  isWishlisted
+                                      ? Icons.favorite
+                                      : Icons.favorite_border,
+                                  color: isWishlisted
+                                      ? Colors.redAccent
+                                      : Colors.white,
+                                ),
+                                onPressed: () =>
+                                    widget.onToggleWishlist(product),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
                         Text(
-                          'Out of Stock',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.redAccent,
+                          product.brand,
+                          style: const TextStyle(
+                            color: Colors.grey,
+                            fontSize: 11,
                           ),
                         ),
-                        SizedBox(height: 8),
                         Text(
-                          'Sorry, the requested smartphone is currently unavailable.',
-                          style: TextStyle(color: Colors.grey),
-                          textAlign: TextAlign.center,
+                          product.name,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                            color: Colors.white,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '\$${product.price.toStringAsFixed(2)}',
+                          style: const TextStyle(
+                            color: Colors.cyanAccent,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const Spacer(),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.cyanAccent,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 4),
+                            ),
+                            onPressed: () => widget.onAddToCart(product),
+                            icon: const Icon(
+                              Icons.add_shopping_cart,
+                              size: 16,
+                              color: Colors.black,
+                            ),
+                            label: const Text(
+                              'Add',
+                              style: TextStyle(
+                                color: Colors.black,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
                         ),
                       ],
                     ),
-                  )
-                : GridView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: filteredProducts.length,
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          childAspectRatio: 0.7,
-                          crossAxisSpacing: 12,
-                          mainAxisSpacing: 12,
-                        ),
-                    itemBuilder: (context, index) {
-                      final product = filteredProducts[index];
-                      return GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  ProductDetailScreen(product: product),
-                            ),
-                          );
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF181A20),
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Image displaying with Image.network
-                              Expanded(
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(12),
-                                  child: Image.network(
-                                    product.imageUrl,
-                                    width: double.infinity,
-                                    fit: BoxFit.cover,
-                                    errorBuilder:
-                                        (context, error, stackTrace) =>
-                                            Container(
-                                              color: Colors.grey.shade900,
-                                              child: const Icon(
-                                                Icons.phone_android,
-                                                size: 50,
-                                                color: Colors.grey,
-                                              ),
-                                            ),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 10),
-                              Text(
-                                product.brand,
-                                style: const TextStyle(
-                                  color: Colors.grey,
-                                  fontSize: 12,
-                                ),
-                              ),
-                              Text(
-                                product.name,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14,
-                                  color: Colors.white,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              const SizedBox(height: 6),
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    product.price,
-                                    style: const TextStyle(
-                                      color: Colors.cyanAccent,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 15,
-                                    ),
-                                  ),
-                                  Row(
-                                    children: [
-                                      const Icon(
-                                        Icons.star,
-                                        color: Colors.amber,
-                                        size: 14,
-                                      ),
-                                      const SizedBox(width: 2),
-                                      Text(
-                                        product.rating,
-                                        style: const TextStyle(
-                                          color: Colors.grey,
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
                   ),
+                );
+              },
+            ),
           ],
         ),
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        backgroundColor: const Color(0xFF181A20),
-        selectedItemColor: Colors.cyanAccent,
-        unselectedItemColor: Colors.grey,
-        currentIndex: _selectedIndex,
-        onTap: (index) => setState(() => _selectedIndex = index),
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home_filled), label: 'Home'),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.explore_outlined),
-            label: 'Explore',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.favorite_outline),
-            label: 'Wishlist',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline),
-            label: 'Profile',
-          ),
-        ],
       ),
     );
   }
 }
 
-// Product Details Screen
-class ProductDetailScreen extends StatelessWidget {
-  final PhoneProduct product;
+// Wishlist Screen
+class WishlistScreen extends StatelessWidget {
+  final List<PhoneProduct> wishlist;
+  final Function(PhoneProduct) onAddToCart;
+  final Function(PhoneProduct) onToggleWishlist;
 
-  const ProductDetailScreen({super.key, required this.product});
+  const WishlistScreen({
+    super.key,
+    required this.wishlist,
+    required this.onAddToCart,
+    required this.onToggleWishlist,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        title: const Text('My Wishlist'),
         backgroundColor: Colors.transparent,
         elevation: 0,
-        title: Text(
-          product.name,
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
+      ),
+      body: wishlist.isEmpty
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: const [
+                  Icon(Icons.favorite_border, size: 80, color: Colors.grey),
+                  SizedBox(height: 16),
+                  Text(
+                    'Your Wishlist is Empty',
+                    style: TextStyle(fontSize: 18, color: Colors.grey),
+                  ),
+                ],
+              ),
+            )
+          : ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: wishlist.length,
+              itemBuilder: (context, index) {
+                final product = wishlist[index];
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF181A20),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.network(
+                          product.imageUrl,
+                          width: 60,
+                          height: 60,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              product.name,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                            Text(
+                              '\$${product.price}',
+                              style: const TextStyle(color: Colors.cyanAccent),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(
+                          Icons.add_shopping_cart,
+                          color: Colors.cyanAccent,
+                        ),
+                        onPressed: () => onAddToCart(product),
+                      ),
+                      IconButton(
+                        icon: const Icon(
+                          Icons.delete_outline,
+                          color: Colors.redAccent,
+                        ),
+                        onPressed: () => onToggleWishlist(product),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+    );
+  }
+}
+
+// Cart Screen with Total Calculation
+class CartScreen extends StatelessWidget {
+  final List<CartItem> cartItems;
+  final VoidCallback onQuantityChanged;
+  final Function(CartItem) onRemove;
+  final VoidCallback onClearCart;
+
+  const CartScreen({
+    super.key,
+    required this.cartItems,
+    required this.onQuantityChanged,
+    required this.onRemove,
+    required this.onClearCart,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    double subtotal = cartItems.fold(
+      0,
+      (sum, item) => sum + (item.product.price * item.quantity),
+    );
+    double shipping = cartItems.isEmpty ? 0 : 15.0;
+    double total = subtotal + shipping;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Shopping Cart'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        actions: [
+          if (cartItems.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.delete_sweep, color: Colors.redAccent),
+              onPressed: onClearCart,
+            ),
+        ],
+      ),
+      body: cartItems.isEmpty
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: const [
+                  Icon(
+                    Icons.shopping_cart_outlined,
+                    size: 80,
+                    color: Colors.grey,
+                  ),
+                  SizedBox(height: 16),
+                  Text(
+                    'Your Cart is Empty',
+                    style: TextStyle(fontSize: 18, color: Colors.grey),
+                  ),
+                ],
+              ),
+            )
+          : Column(
+              children: [
+                Expanded(
+                  child: ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: cartItems.length,
+                    itemBuilder: (context, index) {
+                      final item = cartItems[index];
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF181A20),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Image.network(
+                                item.product.imageUrl,
+                                width: 60,
+                                height: 60,
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    item.product.name,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  Text(
+                                    '\$${item.product.price}',
+                                    style: const TextStyle(
+                                      color: Colors.cyanAccent,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Row(
+                              children: [
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.remove_circle_outline,
+                                    color: Colors.grey,
+                                  ),
+                                  onPressed: () {
+                                    if (item.quantity > 1) {
+                                      item.quantity--;
+                                      onQuantityChanged();
+                                    } else {
+                                      onRemove(item);
+                                    }
+                                  },
+                                ),
+                                Text(
+                                  '${item.quantity}',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.add_circle_outline,
+                                    color: Colors.cyanAccent,
+                                  ),
+                                  onPressed: () {
+                                    item.quantity++;
+                                    onQuantityChanged();
+                                  },
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+
+                // Order Summary Card
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF181A20),
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(24),
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Subtotal',
+                            style: TextStyle(color: Colors.grey),
+                          ),
+                          Text(
+                            '\$${subtotal.toStringAsFixed(2)}',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Shipping Fee',
+                            style: TextStyle(color: Colors.grey),
+                          ),
+                          Text(
+                            '\$${shipping.toStringAsFixed(2)}',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                      const Divider(height: 24, color: Colors.grey),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Total Price',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            '\$${total.toStringAsFixed(2)}',
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.cyanAccent,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.cyanAccent,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          onPressed: () {
+                            showDialog(
+                              context: context,
+                              builder: (context) => AlertDialog(
+                                backgroundColor: const Color(0xFF181A20),
+                                title: const Text('Order Placed! 🎉'),
+                                content: const Text(
+                                  'Thank you for your order. Your smartphones are on the way!',
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () {
+                                      Navigator.pop(context);
+                                      onClearCart();
+                                    },
+                                    child: const Text(
+                                      'OK',
+                                      style: TextStyle(
+                                        color: Colors.cyanAccent,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                          child: const Text(
+                            'Proceed to Checkout',
+                            style: TextStyle(
+                              color: Colors.black,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+    );
+  }
+}
+
+// Product Detail Screen
+class ProductDetailScreen extends StatelessWidget {
+  final PhoneProduct product;
+  final bool isWishlisted;
+  final Function(PhoneProduct) onAddToCart;
+  final Function(PhoneProduct) onToggleWishlist;
+
+  const ProductDetailScreen({
+    super.key,
+    required this.product,
+    required this.isWishlisted,
+    required this.onAddToCart,
+    required this.onToggleWishlist,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(product.name),
+        backgroundColor: Colors.transparent,
         actions: [
           IconButton(
-            icon: const Icon(Icons.favorite_border, color: Colors.white),
-            onPressed: () {},
+            icon: Icon(
+              isWishlisted ? Icons.favorite : Icons.favorite_border,
+              color: isWishlisted ? Colors.redAccent : Colors.white,
+            ),
+            onPressed: () => onToggleWishlist(product),
           ),
         ],
       ),
@@ -793,130 +1016,71 @@ class ProductDetailScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Detailed Network Image
-            Container(
-              height: 280,
+            Image.network(
+              product.imageUrl,
+              height: 260,
               width: double.infinity,
-              margin: const EdgeInsets.all(16),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(24),
-                child: Image.network(
-                  product.imageUrl,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => Container(
-                    color: Colors.grey.shade900,
-                    child: const Icon(
-                      Icons.phone_android,
-                      size: 100,
-                      color: Colors.grey,
-                    ),
-                  ),
-                ),
-              ),
+              fit: BoxFit.cover,
             ),
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        product.brand,
-                        style: const TextStyle(
-                          color: Colors.cyanAccent,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Row(
-                        children: [
-                          const Icon(Icons.star, color: Colors.amber, size: 18),
-                          const SizedBox(width: 4),
-                          Text(
-                            product.rating,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+                  Text(
+                    product.brand,
+                    style: const TextStyle(
+                      color: Colors.cyanAccent,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
                   Text(
                     product.name,
                     style: const TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
-                      color: Colors.white,
                     ),
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    product.price,
+                    '\$${product.price}',
                     style: const TextStyle(
                       fontSize: 22,
-                      fontWeight: FontWeight.bold,
                       color: Colors.cyanAccent,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
                   const SizedBox(height: 20),
                   const Text(
                     'Specifications',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      _buildSpecTile(Icons.memory, 'RAM', product.ram),
-                      _buildSpecTile(
-                        Icons.sd_storage,
-                        'Storage',
-                        product.storage,
-                      ),
-                    ],
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 10),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      _buildSpecTile(
-                        Icons.battery_charging_full,
-                        'Battery',
-                        product.battery,
-                      ),
-                      _buildSpecTile(
-                        Icons.camera_alt,
-                        'Camera',
-                        product.camera,
-                      ),
+                      _specTile('RAM', product.ram),
+                      _specTile('Storage', product.storage),
                     ],
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      _specTile('Battery', product.battery),
+                      _specTile('Camera', product.camera),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
                   const Text(
                     'Description',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     product.description,
-                    style: const TextStyle(
-                      color: Colors.grey,
-                      height: 1.5,
-                      fontSize: 14,
-                    ),
+                    style: const TextStyle(color: Colors.grey, height: 1.4),
                   ),
                 ],
               ),
@@ -926,73 +1090,127 @@ class ProductDetailScreen extends StatelessWidget {
       ),
       bottomNavigationBar: Container(
         padding: const EdgeInsets.all(16),
-        decoration: const BoxDecoration(
-          color: Color(0xFF181A20),
-          borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(20),
-            topRight: Radius.circular(20),
-          ),
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.cyanAccent,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                onPressed: () {},
-                child: const Text(
-                  'Buy Now',
-                  style: TextStyle(
-                    color: Colors.black,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
+        color: const Color(0xFF181A20),
+        child: ElevatedButton.icon(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.cyanAccent,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
             ),
-          ],
+          ),
+          onPressed: () => onAddToCart(product),
+          icon: const Icon(Icons.add_shopping_cart, color: Colors.black),
+          label: const Text(
+            'Add to Cart',
+            style: TextStyle(
+              color: Colors.black,
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+            ),
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildSpecTile(IconData icon, String title, String value) {
+  Widget _specTile(String title, String val) {
     return Container(
       width: 160,
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: const Color(0xFF181A20),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: Colors.cyanAccent, size: 22),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(color: Colors.grey, fontSize: 11),
-                ),
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
+          Text(title, style: const TextStyle(color: Colors.grey, fontSize: 11)),
+          Text(
+            val,
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+            overflow: TextOverflow.ellipsis,
           ),
         ],
+      ),
+    );
+  }
+}
+
+// User Profile Screen
+class ProfileScreen extends StatelessWidget {
+  const ProfileScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Profile'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            const CircleAvatar(
+              radius: 50,
+              backgroundColor: Colors.cyanAccent,
+              child: Icon(Icons.person, size: 60, color: Colors.black),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Hansaja Wanniarachchi',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            const Text(
+              'hansaja@example.com',
+              style: TextStyle(color: Colors.grey),
+            ),
+            const SizedBox(height: 24),
+            ListTile(
+              leading: const Icon(
+                Icons.shopping_bag_outlined,
+                color: Colors.cyanAccent,
+              ),
+              title: const Text('My Orders'),
+              onTap: () {},
+            ),
+            ListTile(
+              leading: const Icon(
+                Icons.location_on_outlined,
+                color: Colors.cyanAccent,
+              ),
+              title: const Text('Shipping Addresses'),
+              onTap: () {},
+            ),
+            ListTile(
+              leading: const Icon(
+                Icons.payment_outlined,
+                color: Colors.cyanAccent,
+              ),
+              title: const Text('Payment Methods'),
+              onTap: () {},
+            ),
+            ListTile(
+              leading: const Icon(
+                Icons.settings_outlined,
+                color: Colors.cyanAccent,
+              ),
+              title: const Text('Settings'),
+              onTap: () {},
+            ),
+            const Divider(color: Colors.grey),
+            ListTile(
+              leading: const Icon(Icons.logout, color: Colors.redAccent),
+              title: const Text(
+                'Logout',
+                style: TextStyle(color: Colors.redAccent),
+              ),
+              onTap: () {},
+            ),
+          ],
+        ),
       ),
     );
   }
