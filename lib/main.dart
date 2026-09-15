@@ -1,6 +1,16 @@
-import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
 
-void main() {
+import 'firebase_options.dart';
+
+import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+import 'login_screen.dart';
+import 'auth_service.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   runApp(const PhoneShopApp());
 }
 
@@ -19,7 +29,7 @@ class PhoneShopApp extends StatelessWidget {
           surface: Color(0xFF181A20),
         ),
       ),
-      home: const MainTabScreen(),
+      home: const LoginScreen(),
     );
   }
 }
@@ -73,6 +83,17 @@ class MainTabScreen extends StatefulWidget {
 
 class _MainTabScreenState extends State<MainTabScreen> {
   int _currentIndex = 0;
+  final AuthService _authService = AuthService();
+
+  void _signOut(BuildContext context) async {
+    await _authService.signOut();
+    if (context.mounted) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const LoginScreen()),
+      );
+    }
+  }
 
   // App Global State (In-Memory Data Store)
   final List<CartItem> _cartItems = [];
@@ -227,13 +248,22 @@ class _MainTabScreenState extends State<MainTabScreen> {
     );
   }
 
-  void _toggleWishlist(PhoneProduct product) {
+  void _toggleWishlist(PhoneProduct product) async {
+    final AuthService authService = AuthService();
+
     setState(() {
       if (_wishlistItems.contains(product)) {
         _wishlistItems.remove(product);
       } else {
         _wishlistItems.add(product);
       }
+    });
+
+    await authService.toggleWishlist({
+      'id': product.id,
+      'name': product.name,
+      'price': product.price,
+      'image': product.imageUrl,
     });
   }
 
@@ -246,11 +276,7 @@ class _MainTabScreenState extends State<MainTabScreen> {
         onAddToCart: _addToCart,
         onToggleWishlist: _toggleWishlist,
       ),
-      WishlistScreen(
-        wishlist: _wishlistItems,
-        onAddToCart: _addToCart,
-        onToggleWishlist: _toggleWishlist,
-      ),
+      const WishlistScreen(),
       CartScreen(
         cartItems: _cartItems,
         onQuantityChanged: () => setState(() {}),
@@ -325,6 +351,17 @@ class _HomeScreenState extends State<HomeScreen> {
   String selectedCategory = 'All';
   String searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
+  final AuthService _authService = AuthService();
+
+  void _signOut(BuildContext context) async {
+    await _authService.signOut();
+    if (context.mounted) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const LoginScreen()),
+      );
+    }
+  }
 
   final List<String> categories = [
     'All',
@@ -367,6 +404,12 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ],
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: () => _signOut(context),
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
@@ -625,100 +668,100 @@ class _HomeScreenState extends State<HomeScreen> {
 
 // Wishlist Screen
 class WishlistScreen extends StatelessWidget {
-  final List<PhoneProduct> wishlist;
-  final Function(PhoneProduct) onAddToCart;
-  final Function(PhoneProduct) onToggleWishlist;
-
-  const WishlistScreen({
-    super.key,
-    required this.wishlist,
-    required this.onAddToCart,
-    required this.onToggleWishlist,
-  });
+  const WishlistScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final AuthService authService = AuthService();
+
     return Scaffold(
+      backgroundColor: const Color(0xFF181A20),
       appBar: AppBar(
         title: const Text('My Wishlist'),
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),
-      body: wishlist.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: const [
-                  Icon(Icons.favorite_border, size: 80, color: Colors.grey),
-                  SizedBox(height: 16),
-                  Text(
-                    'Your Wishlist is Empty',
-                    style: TextStyle(fontSize: 18, color: Colors.grey),
-                  ),
-                ],
+      body: StreamBuilder<QuerySnapshot>(
+        stream: authService.getWishlistStream(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(
+              child: CircularProgressIndicator(color: Colors.cyanAccent),
+            );
+          }
+
+          if (snapshot.hasError) {
+            return const Center(
+              child: Text(
+                'Something went wrong!',
+                style: TextStyle(color: Colors.white),
               ),
-            )
-          : ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: wishlist.length,
-              itemBuilder: (context, index) {
-                final product = wishlist[index];
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF181A20),
-                    borderRadius: BorderRadius.circular(12),
+            );
+          }
+
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            return const Center(
+              child: Text(
+                'Your wishlist is empty ❤️',
+                style: TextStyle(color: Colors.grey, fontSize: 16),
+              ),
+            );
+          }
+
+          final wishlistDocs = snapshot.data!.docs;
+
+          return ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: wishlistDocs.length,
+            itemBuilder: (context, index) {
+              var productData =
+                  wishlistDocs[index].data() as Map<String, dynamic>;
+
+              return Card(
+                color: const Color(0xFF262A34),
+                margin: const EdgeInsets.only(bottom: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: ListTile(
+                  leading: Image.network(
+                    productData['image'] ??
+                        productData['imageUrl'] ??
+                        'https://via.placeholder.com/150',
+                    width: 50,
+                    height: 50,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => const Icon(
+                      Icons.phone_android,
+                      color: Colors.cyanAccent,
+                    ),
                   ),
-                  child: Row(
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: Image.network(
-                          product.imageUrl,
-                          width: 60,
-                          height: 60,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              product.name,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
-                            Text(
-                              '\$${product.price}',
-                              style: const TextStyle(color: Colors.cyanAccent),
-                            ),
-                          ],
-                        ),
-                      ),
-                      IconButton(
-                        icon: const Icon(
-                          Icons.add_shopping_cart,
-                          color: Colors.cyanAccent,
-                        ),
-                        onPressed: () => onAddToCart(product),
-                      ),
-                      IconButton(
-                        icon: const Icon(
-                          Icons.delete_outline,
-                          color: Colors.redAccent,
-                        ),
-                        onPressed: () => onToggleWishlist(product),
-                      ),
-                    ],
+                  title: Text(
+                    productData['name'] ?? '',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                );
-              },
-            ),
+                  subtitle: Text(
+                    '\$${productData['price']}',
+                    style: const TextStyle(color: Colors.cyanAccent),
+                  ),
+                  trailing: IconButton(
+                    icon: const Icon(
+                      Icons.delete_outline,
+                      color: Colors.redAccent,
+                    ),
+                    onPressed: () {
+                      authService.toggleWishlist(productData);
+                    },
+                  ),
+                ),
+              );
+            },
+          );
+        },
+      ),
     );
   }
 }
@@ -741,8 +784,9 @@ class CartScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     double subtotal = cartItems.fold(
-      0,
-      (sum, item) => sum + (item.product.price * item.quantity),
+      0.0,
+      (previousValue, item) =>
+          previousValue + (item.product.price * item.quantity),
     );
     double shipping = cartItems.isEmpty ? 0 : 15.0;
     double total = subtotal + shipping;
@@ -936,32 +980,55 @@ class CartScreen extends StatelessWidget {
                               borderRadius: BorderRadius.circular(12),
                             ),
                           ),
-                          onPressed: () {
-                            showDialog(
-                              context: context,
-                              builder: (context) => AlertDialog(
-                                backgroundColor: const Color(0xFF181A20),
-                                title: const Text('Order Placed! 🎉'),
-                                content: const Text(
-                                  'Thank you for your order. Your smartphones are on the way!',
-                                ),
-                                actions: [
-                                  TextButton(
-                                    onPressed: () {
-                                      Navigator.pop(context);
-                                      onClearCart();
-                                    },
-                                    child: const Text(
-                                      'OK',
-                                      style: TextStyle(
-                                        color: Colors.cyanAccent,
+                          onPressed: () async {
+                            final AuthService authService = AuthService();
+
+                            // 1. Cart items ටික Map එකක් බවට සකසා ගැනීම
+                            List<Map<String, dynamic>> orderData = cartItems
+                                .map((item) {
+                                  return {
+                                    'name': item.product.name,
+                                    'price': item.product.price,
+                                    'quantity': item.quantity,
+                                  };
+                                })
+                                .toList();
+
+                            // 2. Firestore එකට Order එක Save කිරීම
+                            await authService.placeOrder(
+                              cartItems: orderData,
+                              totalPrice: total,
+                            );
+
+                            // 3. Success Dialog එක පෙන්වීම
+                            if (context.mounted) {
+                              showDialog(
+                                context: context,
+                                builder: (context) => AlertDialog(
+                                  backgroundColor: const Color(0xFF181A20),
+                                  title: const Text('Order Placed! 🎉'),
+                                  content: const Text(
+                                    'Thank you for your order. Your smartphones are on the way!',
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () {
+                                        Navigator.pop(context);
+                                        onClearCart();
+                                      },
+                                      child: const Text(
+                                        'OK',
+                                        style: TextStyle(
+                                          color: Colors.cyanAccent,
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                ],
-                              ),
-                            );
+                                  ],
+                                ),
+                              );
+                            }
                           },
+
                           child: const Text(
                             'Proceed to Checkout',
                             style: TextStyle(
@@ -1143,74 +1210,268 @@ class ProfileScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final AuthService authService = AuthService();
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Profile'),
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            const CircleAvatar(
-              radius: 50,
-              backgroundColor: Colors.cyanAccent,
-              child: Icon(Icons.person, size: 60, color: Colors.black),
+      body: StreamBuilder<DocumentSnapshot>(
+        stream: authService.getUserDetails(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          if (snapshot.hasError) {
+            return Center(child: Text('Error: ${snapshot.error}'));
+          }
+
+          if (!snapshot.hasData || !snapshot.data!.exists) {
+            return const Center(
+              child: Text('User profile data not found in Firestore.'),
+            );
+          }
+
+          var userData = snapshot.data!.data() as Map<String, dynamic>;
+
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                const CircleAvatar(
+                  radius: 50,
+                  backgroundColor: Colors.cyanAccent,
+                  child: Icon(Icons.person, size: 60, color: Colors.black),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  userData['name'] ?? 'No Name',
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  userData['email'] ?? 'No Email',
+                  style: const TextStyle(color: Colors.grey),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  userData['phone'] ?? 'No Phone',
+                  style: const TextStyle(color: Colors.cyanAccent),
+                ),
+                const SizedBox(height: 24),
+                ListTile(
+                  leading: const Icon(
+                    Icons.shopping_bag_outlined,
+                    color: Colors.cyanAccent,
+                  ),
+                  title: const Text('My Orders'),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const OrdersScreen(),
+                      ),
+                    );
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(
+                    Icons.location_on_outlined,
+                    color: Colors.cyanAccent,
+                  ),
+                  title: const Text('Shipping Addresses'),
+                  onTap: () {},
+                ),
+                ListTile(
+                  leading: const Icon(
+                    Icons.payment_outlined,
+                    color: Colors.cyanAccent,
+                  ),
+                  title: const Text('Payment Methods'),
+                  onTap: () {},
+                ),
+                ListTile(
+                  leading: const Icon(
+                    Icons.settings_outlined,
+                    color: Colors.cyanAccent,
+                  ),
+                  title: const Text('Settings'),
+                  onTap: () {},
+                ),
+                const Divider(color: Colors.grey),
+                ListTile(
+                  leading: const Icon(Icons.logout, color: Colors.redAccent),
+                  title: const Text(
+                    'Logout',
+                    style: TextStyle(color: Colors.redAccent),
+                  ),
+                  onTap: () async {
+                    await authService.signOut();
+                    if (context.mounted) {
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const LoginScreen(),
+                        ),
+                      );
+                    }
+                  },
+                ),
+              ],
             ),
-            const SizedBox(height: 12),
-            const Text(
-              'Hansaja Wanniarachchi',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const Text(
-              'hansaja@example.com',
-              style: TextStyle(color: Colors.grey),
-            ),
-            const SizedBox(height: 24),
-            ListTile(
-              leading: const Icon(
-                Icons.shopping_bag_outlined,
-                color: Colors.cyanAccent,
+          );
+        },
+      ),
+    );
+  }
+}
+
+class OrdersScreen extends StatelessWidget {
+  const OrdersScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final AuthService authService = AuthService();
+
+    return Scaffold(
+      backgroundColor: const Color(0xFF181A20),
+      appBar: AppBar(
+        title: const Text('My Orders'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+      ),
+      body: StreamBuilder<QuerySnapshot>(
+        stream: authService.getUserOrders(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(
+              child: CircularProgressIndicator(color: Colors.cyanAccent),
+            );
+          }
+
+          if (snapshot.hasError) {
+            return const Center(
+              child: Text(
+                'Something went wrong!',
+                style: TextStyle(color: Colors.white),
               ),
-              title: const Text('My Orders'),
-              onTap: () {},
-            ),
-            ListTile(
-              leading: const Icon(
-                Icons.location_on_outlined,
-                color: Colors.cyanAccent,
+            );
+          }
+
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            return const Center(
+              child: Text(
+                'No orders placed yet.',
+                style: TextStyle(color: Colors.grey, fontSize: 16),
               ),
-              title: const Text('Shipping Addresses'),
-              onTap: () {},
-            ),
-            ListTile(
-              leading: const Icon(
-                Icons.payment_outlined,
-                color: Colors.cyanAccent,
-              ),
-              title: const Text('Payment Methods'),
-              onTap: () {},
-            ),
-            ListTile(
-              leading: const Icon(
-                Icons.settings_outlined,
-                color: Colors.cyanAccent,
-              ),
-              title: const Text('Settings'),
-              onTap: () {},
-            ),
-            const Divider(color: Colors.grey),
-            ListTile(
-              leading: const Icon(Icons.logout, color: Colors.redAccent),
-              title: const Text(
-                'Logout',
-                style: TextStyle(color: Colors.redAccent),
-              ),
-              onTap: () {},
-            ),
-          ],
-        ),
+            );
+          }
+
+          final orders = snapshot.data!.docs;
+
+          return ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: orders.length,
+            itemBuilder: (context, index) {
+              var orderDoc = orders[index];
+              var orderData = orderDoc.data() as Map<String, dynamic>;
+              List items = orderData['items'] ?? [];
+              double totalPrice = (orderData['totalPrice'] ?? 0).toDouble();
+              String status = orderData['status'] ?? 'Pending';
+
+              return Card(
+                color: const Color(0xFF262A34),
+                margin: const EdgeInsets.only(bottom: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Order #${orderDoc.id.substring(0, 6).toUpperCase()}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.cyanAccent.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              status,
+                              style: const TextStyle(
+                                color: Colors.cyanAccent,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const Divider(color: Colors.grey, height: 24),
+                      ...items.map((item) {
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                '${item['quantity'] ?? 1}x ${item['name'] ?? item['title']}',
+                                style: const TextStyle(color: Colors.white70),
+                              ),
+                              Text(
+                                '\$${item['price']}',
+                                style: const TextStyle(color: Colors.white70),
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
+                      const Divider(color: Colors.grey, height: 24),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Total Amount:',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            '\$${totalPrice.toStringAsFixed(2)}',
+                            style: const TextStyle(
+                              color: Colors.cyanAccent,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 18,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          );
+        },
       ),
     );
   }
